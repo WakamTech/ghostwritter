@@ -1,0 +1,9 @@
+venv/
+dist/
+build/
+__pycache__/
+.qodo/
+.google-cookie
+main.spec
+credentials_openai.csv
+credentials_wordpress.csv
