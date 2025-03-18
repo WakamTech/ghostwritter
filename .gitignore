@@ -7,3 +7,4 @@ __pycache__/
 main.spec
 credentials_openai.csv
 credentials_wordpress.csv
+.qodo
