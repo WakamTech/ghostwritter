@@ -17,14 +17,20 @@ def generate_text(prompt, api_key, model):
       return None
 
 def generate_article(prompt, content, api_key, topic, model):
-    """Génère un article à partir d'un prompt, de contenu et du sujet."""
-    final_prompt = f"{prompt}\n\nSujet de l'article : {topic}\n\n{content}"
+    """Génère un article à partir d'un prompt et du sujet."""
+    # Construct the final prompt, incorporating the topic
+    final_prompt = f"{prompt}\n\nSujet de l'article : {topic}"
+
     article = generate_text(final_prompt, api_key, model)
+
+    if not article:  # Handle potential None return
+        return None
     # Extraction du HTML si présent
     html_match = re.search(r'```html(.*?)```', article, re.DOTALL)
     if html_match:
         return html_match.group(1).strip()
-    return article
+
+    return article  # Return the raw Markdown text
 
 
 def generate_title(prompt, article, api_key, model):
@@ -34,11 +40,13 @@ def generate_title(prompt, article, api_key, model):
 
 
 def generate_summary_table(prompt, article, api_key, model):
-  """Génère un résumé sous forme de tableau à partir d'un prompt et d'un article."""
-  final_prompt = f"{prompt}\n\n{article}"
-  summary = generate_text(final_prompt, api_key, model)
-  # Extraction du HTML si présent
-  html_match = re.search(r'```html(.*?)```', summary, re.DOTALL)
-  if html_match:
-    return html_match.group(1).strip()
-  return summary
+    """Génère un résumé sous forme de tableau à partir d'un prompt et d'un article.
+    On retourne du markdown
+    """
+    final_prompt = f"{prompt}\n\n{article}"
+    summary = generate_text(final_prompt, api_key, model)
+    # Extraction du HTML si présent
+    html_match = re.search(r'```html(.*?)```', summary, re.DOTALL)
+    if html_match:
+        return html_match.group(1).strip()
+    return summary

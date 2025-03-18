@@ -1,10 +1,10 @@
 import time
 import csv
 import re
-from urllib.parse import urljoin  # Import urljoin
+from urllib.parse import urljoin
 from config_utils import load_config_from_csv, load_prompt_from_txt
-from google_search import get_organic_urls
-from content_extractor import extract_text_from_url
+# from google_search import get_organic_urls  # REMOVE
+# from content_extractor import extract_text_from_url  # REMOVE
 from openai_utils import generate_article, generate_summary_table, generate_title
 from wordpress_utils import create_wordpress_draft
 from markdown_to_html import markdown_to_html
@@ -23,25 +23,26 @@ def main():
 
         for row in reader:
             site_url, query = row
-            # --- Construct the full XML-RPC URL ---
             full_wordpress_url = urljoin(site_url, 'xmlrpc.php')
             print(f"Processing site: {site_url}, keyword: {query}")
-            print(f"Full WordPress URL: {full_wordpress_url}") #  Print it
+            print(f"Full WordPress URL: {full_wordpress_url}")
 
             article = None  # Initialize for error handling
             try:
-                urls = get_organic_urls(query)
-                if not urls:
-                    print(f"No valid search results for: {query} on {site_url}")
-                    continue
+                # --- REMOVE Google Search and Content Extraction ---
+                # urls = get_organic_urls(query)
+                # if not urls:
+                #     print(f"No valid search results for: {query} on {site_url}")
+                #     continue
 
-                all_text = ""
-                for url in urls:
-                    text = extract_text_from_url(url)
-                    if text:
-                        all_text += f" {text}"
+                # all_text = ""
+                # for url in urls:
+                #     text = extract_text_from_url(url)
+                #     if text:
+                #         all_text += f" {text}"
 
-                article = generate_article(prompt_article, all_text, openai_credentials['api_key'], query, openai_credentials['model'])
+                # --- Generate Article Directly from Prompt and Query ---
+                article = generate_article(prompt_article, "", openai_credentials['api_key'], query, openai_credentials['model']) # Pass empty string for content
                 if not article:
                     print(f"Error generating article for {query} on {site_url}")
                     continue
@@ -59,12 +60,11 @@ def main():
                     print(f"Error generating summary for {query} on {site_url}")
                     continue
 
-                article = markdown_to_html(article)
+                article = markdown_to_html(article) # Keep this line!  This is now CORRECT.
                 full_content = f"<p>{summary}</p><p>{article}</p>"
 
-                # --- Use the constructed URL ---
                 post_id = create_wordpress_draft(title, full_content,
-                                                full_wordpress_url,  # Pass the full URL
+                                                full_wordpress_url,
                                                 wordpress_credentials['username'],
                                                 wordpress_credentials['password'])
                 if post_id:
