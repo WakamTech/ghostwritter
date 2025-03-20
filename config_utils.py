@@ -1,7 +1,7 @@
 import csv
 
 def load_config_from_csv(filepath):
-    """Charge les configurations depuis un fichier CSV."""
+    """Loads configurations from a CSV file."""
     with open(filepath, 'r', encoding='utf-8') as f:
         reader = csv.reader(f)
         header = next(reader)
@@ -9,5 +9,8 @@ def load_config_from_csv(filepath):
         return dict(zip(header, row))
 
 def load_prompt_from_txt(filepath):
-     with open(filepath, 'r', encoding='utf-8') as f:
-         return f.read()
+    """Loads a prompt from a TXT file."""
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return f.read()
+
+# No changes to load_prompt_from_txt needed
