@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+    {% load static %}
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dashboard de Configuration et Opérations</title>
+        <meta name="description" content="Dashboard innovant pour configurer et lancer les opérations de génération de contenu.">
+        <link rel="stylesheet" href="{% static 'ghost_app/css/style.css' %}">
+        <link rel="stylesheet" href="{% static 'ghost_app/css/responsive.css' %}">
+        <link rel="stylesheet" href="{% static 'ghost_app/css/animations.css' %}">
+    </head>
+    <body>
+        <header>
+            <div class="logo">
+                <img src="{% static 'ghost_app/images/logo.svg' %}" alt="Logo de l'Application">
+                <h1>Dashboard de Configuration</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li>
+                        <a href="#config-generale">Configuration Générale</a>
+                    </li>
+                    <li>
+                        <a href="#sites-keywords">Sites et Mots-clés</a>
+                    </li>
+                    <li>
+                        <a href="#prompts-timing">Prompts et Timing</a>
+                    </li>
+                    <li>
+                        <a href="#operations">Opérations</a>
+                    </li>
+                </ul>
+            </nav>
+        </header>
+        <main>
+            <section id="config-generale" class="config-section">
+                <h2>Configuration Générale</h2>
+                <div class="config-general-grid">
+                    <div class="config-column">
+                        <h3>Paramètres Généraux</h3>
+                        <form id="general-config-form" method="post">
+                            {% csrf_token %}
+                            {% for field in general_form %}
+                            <div class="form-group">
+                                {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.errors %}
+                                <ul class="errorlist">
+                                    {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                            <button type="submit" name="save_general_config" class="primary-button">Enregistrer</button>
+                            <label for="import-config-file" class="secondary-button import-button">Importer Configuration</label>
+                            <!-- Label wrapping the button -->
+                            <input
+                                type="file"
+                                id="import-config-file"
+                                name="config_file"
+                                accept=".json"
+                                style="display:none;"
+                            >
+                            <!-- Hidden file input -->
+                        </form>
+                    </div>
+                    <div class="config-column">
+                        <h3>Identifiants OpenAI</h3>
+                        <form id="openai-config-form" method="post">
+                            {% csrf_token %}
+                            {% for field in openai_form %}
+                            <div class="form-group">
+                                {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.errors %}
+                                <ul class="errorlist">
+                                    {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                            <button type="submit" name="save_openai_config" class="primary-button">Enregistrer OpenAI</button>
+                            <!-- name="save_openai_config" -->
+                        </form>
+                        <h3>Identifiants WordPress</h3>
+                        <form id="wordpress-config-form" method="post">
+                            {% csrf_token %}
+                            {% for field in wordpress_form %}
+                            <div class="form-group">
+                                {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.errors %}
+                                <ul class="errorlist">
+                                    {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                            <button type="submit" name="save_wordpress_config" class="primary-button">Enregistrer WordPress</button>
+                            <!-- name="save_wordpress_config" -->
+                        </form>
+                    </div>
+                </div>
+            </section>
+            <section id="sites-keywords" class="config-section">
+                <h2>Sites et Mots-clés</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>
+                                    URL Fournie
+                                    <form method="post" action="" style="display:inline-block;">
+                                        {% csrf_token %}
+                                        <!-- Inline form -->
+                                        <button type="submit" name="delete_all_sites_keywords" class="secondary-button delete-all-button">(Supprimer Tout)</button>
+                                        <!-- Delete All Button -->
+                                    </form>
+                                </th>
+                                <th>Mot-clé</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sites-keywords-table-body">
+                            {% for site_keyword in sites_keywords %}
+                            <tr>
+                                <td>{{ site_keyword.url }}</td>
+                                <td>{{ site_keyword.keyword }}</td>
+                                <td>
+                                    <form method="post" action="" >
+                                        {% csrf_token %}
+                                        <!-- Form inside <td> -->
+                                        <input type="hidden" name="delete_url" value="{{ site_keyword.url }}">
+                                        <!-- Hidden input for URL -->
+                                        <button type="submit" name="delete_site_keyword" class="secondary-button">Supprimer</button>
+                                        <!-- Delete Button -->
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3">Aucun site et mot-clé ajouté.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="add-site-keyword-form-container">
+                    <!-- Container for the form -->
+                    <h3>Ajouter un Site et Mot-clé</h3>
+                    <form id="add-site-keyword-form" method="post">
+                        {% csrf_token %}
+                        {% for field in site_keyword_form %}
+                        <!-- Render SiteKeywordForm fields -->
+                        <div class="form-group">
+                            {{ field.label_tag }}
+                                {{ field }}
+                                {% if field.errors %}
+                            <ul class="errorlist">
+                                {% for error in field.errors %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" name="add_site_keyword" class="primary-button">Ajouter un site et mot-clé</button>
+
+                    </form>
+                    <div class="add-site-keyword-buttons">
+                        <form method="post" action="" enctype="multipart/form-data" style="display:inline-block;">
+                            {% csrf_token %}
+                            <label for="import-sites-keywords-csv" class="secondary-button import-csv-button">Importer CSV</label>
+                            <input type="file" id="import-sites-keywords-csv" name="sites_keywords_csv_file" accept=".csv" style="display:none;" >
+                            <button type="submit" style="display:none;">Submit Form</button>
+                        </form>
+                    </div>
+                </div>
+                
+            </section>
+            <section id="prompts-timing" class="config-section">
+                <h2>Prompts et Timing</h2>
+                <div class="config-prompts-grid">
+                    <!-- Nouveau conteneur GRID pour 2 colonnes -->
+                    <div class="config-column">
+                        <!-- Première colonne pour les Prompts -->
+                        <h3>Prompts</h3>
+                        <div class="config-item">
+                            <label>Prompt Article V1:</label>
+                            <input type="text" value="prompt_article_v1.txt" readonly>
+                        </div>
+                        <div class="config-item">
+                            <label>Prompt Article V2:</label>
+                            <input type="text" value="prompt_article_v2.txt" readonly>
+                        </div>
+                        <div class="config-item">
+                            <label>Prompt Résumé:</label>
+                            <input type="text" value="prompt_resume.txt" readonly>
+                        </div>
+                        <div class="config-item">
+                            <label>Prompt Titre:</label>
+                            <input type="text" value="prompt_titre.txt" readonly>
+                        </div>
+                    </div>
+                    <div class="config-column">
+                        <!-- Deuxième colonne pour le Timing -->
+                        <h3>Timing</h3>
+                        <div class="config-item">
+                            <label for="sleep_time">Temps d'attente (secondes):</label>
+                            <input
+                                type="number"
+                                id="sleep_time"
+                                name="sleep_time"
+                                value="3"
+                            >
+                        </div>
+                        <div class="config-item">
+                            <label>Option Timing 2:</label>
+                            <!-- Exemple d'un 2ème élément de timing si besoin -->
+                            <input
+                                type="text"
+                                value="Option timing 2"
+                                placeholder="Non implémenté"
+                                readonly
+                            >
+                        </div>
+                        <!-- Vous pouvez ajouter d'autres éléments de timing ici si nécessaire -->
+                    </div>
+                </div>
+                <!-- Fin config-prompts-grid -->
+                <button class="primary-button">Enregistrer</button>
+            </section>
+            <section id="operations" class="config-section">
+                <h2>Opérations</h2>
+                <button id="start-operation-button" class="cta-button">Lancer les Opérations</button>
+                <div id="operation-log" class="log-area">
+                    <!-- Les logs s'afficheront ici -->
+                    <p>Journal des opérations:</p>
+                </div>
+            </section>
+        </main>
+        <footer>
+            <p>© 2024 Dashboard de Configuration. Tous droits réservés.</p>
+        </footer>
+        <script src="{% static 'ghost_app/js/main.js' %}"></script>
+        <script src="{% static 'ghost_app/js/animations.js' %}"></script>
+        <script src="{% static 'ghost_app/js/menu.js' %}"></script>
+    </body>
+</html>

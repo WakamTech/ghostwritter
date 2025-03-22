@@ -1,0 +1,16 @@
+:root {
+    --background: #f4f4f4;
+    --foreground: #333;
+    --primary: #007bff;
+    --primary-foreground: #fff;
+    --primary-dark: #0056b3; /* Exemple de couleur plus foncée pour le hover */
+    --secondary: #6c757d;
+    --secondary-foreground: #fff;
+    --secondary-dark: #545b62; /* Exemple de couleur plus foncée pour le hover */
+    --card: #fff;
+    --card-foreground: #333;
+    --field: #e9ecef;
+    --field-foreground: #495057;
+    --stars: #ffc107; /* Jaune pour les étoiles ou CTA */
+    --stars-dark: #e0a800; /* Exemple de couleur plus foncée pour le hover */
+}
