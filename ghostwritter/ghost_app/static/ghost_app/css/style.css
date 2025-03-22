@@ -1,0 +1,224 @@
+/* variables.css (Importé en premier pour la cascade) */
+@import 'variables.css';
+
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+}
+
+header {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+}
+
+.logo img {
+    height: 50px;
+    margin-right: 15px;
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+}
+
+nav ul li {
+    margin-left: 20px;
+}
+
+nav ul li a {
+    text-decoration: none;
+    color: var(--card-foreground);
+    font-weight: bold;
+}
+
+main {
+    padding: 20px;
+}
+
+.config-section {
+    margin-bottom: 30px;
+    background-color: var(--card);
+    color: var(--card-foreground);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.config-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: var(--primary);
+    border-bottom: 2px solid var(--secondary);
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+    padding: 10px;
+    border: 1px solid var(--field);
+    border-radius: 4px;
+    background-color: var(--field);
+    color: var(--field-foreground);
+}
+
+.primary-button, .secondary-button, .cta-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.primary-button {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.primary-button:hover {
+    background-color: var(--primary-dark); /* Définissez une couleur plus foncée dans variables.css */
+}
+
+.secondary-button {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+}
+
+.secondary-button:hover {
+    background-color: var(--secondary-dark); /* Définissez une couleur plus foncée dans variables.css */
+}
+
+.cta-button {
+    background-color: var(--stars); /* Couleur pour les boutons d'action importants */
+    color: var(--card-foreground); /* Couleur du texte sur le bouton CTA */
+    font-size: 1.2em; /* Taille de police plus grande pour un bouton d'appel à l'action */
+}
+
+.cta-button:hover {
+    background-color: var(--stars-dark); /* Définissez une couleur plus foncée dans variables.css pour le hover */
+}
+
+
+.table-container {
+    overflow-x: auto; /* Pour la responsivité horizontale du tableau */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--field);
+}
+
+th {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+    font-weight: bold;
+}
+
+tbody tr:nth-child(even) {
+    background-color: var(--field); /* Lignes paires légèrement différentes */
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Grille responsive */
+    gap: 20px;
+}
+
+.config-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.config-item label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.config-item input {
+    padding: 10px;
+    border: 1px solid var(--field);
+    border-radius: 4px;
+    background-color: var(--field);
+    color: var(--field-foreground);
+}
+
+.log-area {
+    background-color: var(--field);
+    color: var(--field-foreground);
+    border: 1px solid var(--field-foreground);
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 20px;
+    height: 200px; /* Hauteur fixe ou utilisez overflow-auto pour la hauteur dynamique */
+    overflow-y: auto; /* Ajoute une barre de défilement verticale si le contenu dépasse */
+    font-family: monospace; /* Police monospace pour les logs */
+    white-space: pre-wrap; /* Respecte les sauts de ligne et les espaces */
+}
+
+
+footer {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    text-align: center;
+    padding: 15px;
+    position: static; /* ou 'static' si vous ne voulez pas qu'il reste en bas */
+    bottom: 0;
+    width: 100%;
+}
+
+.config-prompts-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* Par défaut, une seule colonne */
+    gap: 20px; /* Espace entre les colonnes */
+}
+
+.config-prompts-grid h3 {
+    color: var(--secondary);
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--field);
+    padding-bottom: 5px;
+}
+
+.import-button {
+    /* You can add specific styles if you want to differentiate it from other secondary buttons */
+    /* For example, you could change the color slightly */
+    background-color: var(--secondary-light); /* Define --secondary-light in variables.css if needed */
+    color: var(--secondary-foreground);
+}
+
+.import-button:hover {
+    background-color: var(--secondary); /* Revert to default secondary hover color or choose a different one */
+}
