@@ -59,3 +59,27 @@ class SiteKeywordForm(forms.Form):
         widget=forms.URLInput(attrs={'placeholder': 'https://example.com'}) # URL input type and placeholder
     )
     keyword = forms.CharField(label="Mot-clé",  widget=forms.TextInput(attrs={'placeholder': 'Mot-clé principal'})) # Placeholder
+    
+
+class TimingConfigForm(forms.Form):
+    sleep_time = forms.IntegerField(
+        label="Temps d'attente (secondes)",
+        initial=3,
+        min_value=0
+    )
+    prompt_article_v1_text = forms.CharField(  # Changed to _text and Textarea
+        label="Prompt Article V1",
+        widget=forms.Textarea(attrs={'rows': 4}) # Textarea widget, adjust rows as needed
+    )
+    prompt_article_v2_text = forms.CharField(  # Changed to _text and Textarea
+        label="Prompt Article V2",
+        widget=forms.Textarea(attrs={'rows': 4})
+    )
+    prompt_resume_text = forms.CharField(     # Changed to _text and Textarea
+        label="Prompt Résumé",
+        widget=forms.Textarea(attrs={'rows': 4})
+    )
+    prompt_titre_text = forms.CharField(      # Changed to _text and Textarea
+        label="Prompt Titre",
+        widget=forms.Textarea(attrs={'rows': 4})
+    )

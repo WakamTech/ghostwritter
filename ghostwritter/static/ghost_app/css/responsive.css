@@ -1,0 +1,42 @@
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .logo {
+        margin-bottom: 15px;
+        flex-direction: column; /* Logo et titre en colonne sur mobile */
+        text-align: center; /* Centre le texte du logo */
+    }
+
+    .logo img {
+        margin-right: 0; /* Pas de marge à droite sur mobile car ils sont en colonne */
+        margin-bottom: 10px; /* Marge sous le logo */
+    }
+
+    nav ul {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    nav ul li {
+        margin: 10px 0;
+    }
+
+    .config-grid {
+        grid-template-columns: 1fr; /* Une seule colonne sur mobile */
+    }
+}
+
+
+@media screen and (min-width: 769px) { /* Pour écrans plus grands que mobile */
+    .config-general-grid {
+        grid-template-columns: 1fr 1fr; /* Deux colonnes sur PC */
+    }
+
+    .config-prompts-grid {
+        grid-template-columns: 1fr 1fr; /* Deux colonnes sur PC */
+    }
+}

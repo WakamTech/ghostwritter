@@ -76,3 +76,10 @@ def save_sites_keywords(sites_keywords_list):
         print(f"Sites and keywords successfully saved to {filepath}")
     except Exception as e:
         print(f"Error saving sites and keywords to {filepath}: {e}")
+
+
+def save_timing_config(config_data):
+    save_config_to_json(config_data, 'timing_config.json') # Use generic save_config_to_json
+
+def load_timing_config():
+    return load_config_from_json('timing_config.json') # Use generic load_config_from_json
