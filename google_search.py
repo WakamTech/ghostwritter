@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 def get_organic_urls(query, num_results=4):
     """Récupère les URLs de résultats organiques validés."""
     urls = []
-    for url in search(query, num=10, stop=10, lang='fr', pause=2, tld="fr"): # chercher plus que 4, et le timeout est à 10, tld=fr
+    for url in search(query, num=10, stop=10, lang='fr', pause=5, tld="fr"): # chercher plus que 4, et le timeout est à 10, tld=fr
        if not is_ad_url(url) and is_valid_page(url):
            urls.append(url)
            if len(urls) == num_results:

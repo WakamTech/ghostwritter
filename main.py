@@ -45,7 +45,7 @@ def main():
                     continue
 
                 # 4. Génération du titre
-                title_prompt = "Génère un titre percutant pour cet article"
+                title_prompt = "Génère un titre percutant pour cet article. Retourne juste directement le titre, pas de phase d'introduction ou de conclusion, absolument rien d'autres. Retourne le titre directemment sans aucune miseen forme juste un simple texte"
                 title = generate_title(title_prompt, article, openai_credentials['api_key'], openai_credentials['model'])
 
                 if not title:
