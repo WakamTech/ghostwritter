@@ -11,3 +11,4 @@ credentials_wordpress.csv
 *.md
 test.py
 prompt_titre.txt
+.qodo
