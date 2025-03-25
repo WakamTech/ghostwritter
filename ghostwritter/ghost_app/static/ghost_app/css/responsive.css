@@ -37,6 +37,6 @@
     }
 
     .config-prompts-grid {
-        grid-template-columns: 1fr 1fr; /* Deux colonnes sur PC */
+        grid-template-columns: 1fr; /* Deux colonnes sur PC */
     }
 }

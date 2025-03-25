@@ -236,3 +236,8 @@ footer {
 .import-button:hover {
     background-color: var(--secondary); /* Revert to default secondary hover color or choose a different one */
 }
+
+.button-center{
+    align-self: center;
+    width: 80%;
+}

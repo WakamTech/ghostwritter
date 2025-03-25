@@ -120,3 +120,24 @@ def get_post_id_from_slug(wordpress_url, username, password, slug, post_type='pa
     except Exception as e:
         print(f"Error in get_post_id_from_slug: {e}")
         return None
+
+# In your wordpress_utils.py (add this function)
+
+def get_home_page_id(wordpress_url, username, password):
+    """Retrieves the ID of the WordPress home page (static front page) using the REST API."""
+    try:
+        api_url = f"{wordpress_url.rstrip('/')}/wp-json/wp/v2/settings"
+        response = requests.get(api_url, auth=(username, password))
+        response.raise_for_status()
+        settings = response.json()
+        # print(settings) # Debug print
+        if 'show_on_front' in settings and settings['show_on_front'] == 'page':
+            if 'page_on_front' in settings:
+                return settings['page_on_front']
+        return None  # No static front page set or 'show_on_front' is not 'page'
+    except requests.exceptions.RequestException as e:
+        print(f"HTTP Request Error (get_home_page_id): {e}")
+        return None
+    except Exception as e:
+        print(f"Error getting home page ID: {e}")
+        return None

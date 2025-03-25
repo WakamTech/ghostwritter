@@ -174,6 +174,8 @@ def dashboard_view(request):
     }
     return render(request, 'ghost_app/index.html', context)
 
+# In your views.py
+
 def run_operations():
     print("--- Running Operations ---")
 
@@ -198,15 +200,15 @@ def run_operations():
     prompt_article_v1 = timing_config.get('prompt_article_v1_text', '') # Get prompt texts
     prompt_article_v2 = timing_config.get('prompt_article_v2_text', '')
     prompt_resume = timing_config.get('prompt_resume_text', '')
-    prompt_titre_prompt = timing_config.get('prompt_titre_text', '') # Renamed variable to avoid conflict
+    prompt_titre_prompt = timing_config.get('prompt_titre_text', '') # Renamed variable
 
 
     # --- Process each site and keyword ---
-    for site_keyword_item in sites_keywords_data: # Iterate through list of dictionaries
-        provided_url = site_keyword_item.get('url') # Get URL and keyword from dictionary
+    for site_keyword_item in sites_keywords_data:
+        provided_url = site_keyword_item.get('url')
         query = site_keyword_item.get('keyword')
 
-        if not provided_url or not query: # Skip if URL or keyword is missing
+        if not provided_url or not query:
             print(f"--- Skipping entry: Missing URL or keyword in sites_keywords data ---")
             continue
 
@@ -215,14 +217,24 @@ def run_operations():
         try:
             # --- 1. Determine WordPress URL and Post ID ---
             parsed_url = urlparse(provided_url)
-            base_wordpress_url = f"{parsed_url.scheme}://{parsed_url.netloc}" # Base WordPress URL
-            full_wordpress_url = base_wordpress_url # Use base URL for REST API
-            slug = parsed_url.path.strip('/') if parsed_url.path and parsed_url.path != '/' and 'xmlrpc.php' not in parsed_url.path else None
+            base_wordpress_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            full_wordpress_url = base_wordpress_url  # Use base URL for REST API
+            slug = parsed_url.path.strip('/') if parsed_url.path and parsed_url.path != '/' else None
 
-            post_id = None # Initialize post_id
-            post_type = 'post' # Default post type
+            post_id = None
+            post_type = 'post'  # Default, will be overridden for home page
 
-            if slug: # If a slug is extracted from the URL, try to get existing post/page
+
+            if not slug:  # It's likely the home page
+                print("--- Detecting Home Page URL ---")
+                post_id = wordpress_utils.get_home_page_id(full_wordpress_url, wordpress_username, wordpress_password)
+                if post_id:
+                    post_type = 'page'  # Home page is *always* a page
+                    print(f"--- Home Page ID found: {post_id} ---")
+                else:
+                    print("--- ERROR: Could not retrieve Home Page ID. Skipping this URL. ---")
+                    continue  # Skip if home page ID can't be found
+            elif slug: # If a slug is extracted from the URL, try to get existing post/page
                 post_id = wordpress_utils.get_post_id_from_slug(full_wordpress_url, wordpress_username, wordpress_password, slug, post_type='page')
                 if post_id:
                     post_type = 'page'
@@ -230,11 +242,8 @@ def run_operations():
                     post_id = wordpress_utils.get_post_id_from_slug(full_wordpress_url, wordpress_username, wordpress_password, slug, post_type='post')
                     if not post_id:
                         print(f"No existing post or page found for slug '{slug}'. Creating new post.")
-            else:
-                print("No slug found in URL. Creating a new post.")
 
-
-            # --- 2. Generate Article Content ---
+            # --- 2. Generate Article Content (Rest of the logic remains the same) ---
             article_content = ""
             if generation_mode == 'search':
                 search_urls = google_search.get_organic_urls(query, num_results=int(num_results), lang=search_language, tld=search_domain)
@@ -243,14 +252,14 @@ def run_operations():
                     article_content = openai_utils.generate_article(prompt_article_v1, all_text_content, openai_api_key, query, openai_model)
                 else:
                     print(f"No search results found for query: {query}")
-                    continue # Skip to next site/keyword if no search results
+                    continue
 
             elif generation_mode == 'direct':
                 article_content = openai_utils.generate_article(prompt_article_v2, "", openai_api_key, query, openai_model)
 
             if not article_content:
                 print(f"Failed to generate article content for: {query}")
-                continue # Skip to next site/keyword if article generation fails
+                continue
 
             # --- 3. Generate Title and Summary ---
             article_title = openai_utils.generate_title(prompt_titre_prompt, article_content, openai_api_key, openai_model).strip('"').strip('«').strip('»')
@@ -258,27 +267,29 @@ def run_operations():
 
             if not article_title or not article_summary:
                 print(f"Failed to generate title or summary for: {query}")
-                continue # Skip if title or summary generation fails
+                continue
 
             # --- 4. Convert Markdown to HTML and Combine Content ---
             article_html_content = markdown_to_html.markdown_to_html(article_content)
             full_post_content = f"<p>{article_summary}</p><p>{article_html_content}</p>"
 
-            # --- 5. Create or Update WordPress Post ---
+            # --- 5. Create or Update WordPress Post/Page ---
+            # The key change is that if post_id exists (either from slug or home page), it *always* updates.
             post_result = wordpress_utils.create_or_update_wordpress_post(
                 article_title, full_post_content, full_wordpress_url, wordpress_username, wordpress_password,
-                post_status=post_status, post_id=post_id, post_type=post_type
+                post_status=post_status, post_id=post_id, post_type=post_type  # Pass post_type
             )
 
             if post_result:
-                if post_id:
+                if post_id: # Always an update if post_id is not None
                     print(f"Article/Page updated successfully on {full_wordpress_url} with Post ID: {post_id}")
                 else:
-                    print(f"Article created with ID: {post_result} on {full_wordpress_url}")
+                    print(f"Article created with ID: {post_result} on {full_wordpress_url}") #This case will be use for the creation of post.
             else:
                 print(f"Failed to create or update article on {full_wordpress_url}")
 
-            time.sleep(int(sleep_time)) # Respect configured sleep time
+
+            time.sleep(int(sleep_time))
 
         except Exception as e:
             print(f"--- 💥 Error processing URL: {provided_url}, Keyword: {query} ---")
