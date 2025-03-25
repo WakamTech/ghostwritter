@@ -1,6 +1,7 @@
 venv/
 dist/
 build/
+config/
 __pycache__/
 .qodo/
 .google-cookie
@@ -8,3 +9,15 @@ main.spec
 credentials_openai.csv
 credentials_wordpress.csv
 .qodo
+ghostwritter/build
+ghostwritter/ghost_app/config
+.well-known
+ghostwritter/ghost_app/config/general_config.json
+ghostwritter/ghost_app/config/openai_config.json
+ghostwritter/ghost_app/config/timing_config.json
+ghostwritter/ghost_app/config/wordpress_config.json
+config.json
+ghostwritter/ghost_app/config/
+ghostwritter/ghost_app/config/openai_config.json
+# Ignorer tous les fichiers .json du dossier config
+ghostwritter/ghost_app/config/*.json
