@@ -174,8 +174,6 @@ def dashboard_view(request):
     }
     return render(request, 'ghost_app/index.html', context)
 
-# In your views.py
-
 def run_operations():
     print("--- Running Operations ---")
 
@@ -201,6 +199,8 @@ def run_operations():
     prompt_article_v2 = timing_config.get('prompt_article_v2_text', '')
     prompt_resume = timing_config.get('prompt_resume_text', '')
     prompt_titre_prompt = timing_config.get('prompt_titre_text', '') # Renamed variable
+    prompt_meta_title_prompt = timing_config.get('prompt_meta_title_text', '')  # New prompt for meta title
+    prompt_meta_description_prompt = timing_config.get('prompt_meta_description_text', '')  # New prompt for meta description
 
 
     # --- Process each site and keyword ---
@@ -269,6 +269,15 @@ def run_operations():
                 print(f"Failed to generate title or summary for: {query}")
                 continue
 
+
+            # --- 3.5. Generate Meta Title and Meta Description ---
+            meta_title = openai_utils.generate_title(prompt_meta_title_prompt, article_content, openai_api_key, openai_model).strip('"').strip('«').strip('»')
+            meta_description = openai_utils.generate_title(prompt_meta_description_prompt, article_content, openai_api_key, openai_model)
+        
+            if not meta_title or not meta_description:
+                print(f"Failed to generate meta title or meta description for: {query}")
+                continue
+
             # --- 4. Convert Markdown to HTML and Combine Content ---
             article_html_content = markdown_to_html.markdown_to_html(article_content)
             full_post_content = f"<p>{article_summary}</p><p>{article_html_content}</p>"
@@ -277,7 +286,8 @@ def run_operations():
             # The key change is that if post_id exists (either from slug or home page), it *always* updates.
             post_result = wordpress_utils.create_or_update_wordpress_post(
                 article_title, full_post_content, full_wordpress_url, wordpress_username, wordpress_password,
-                post_status=post_status, post_id=post_id, post_type=post_type  # Pass post_type
+                post_status=post_status, post_id=post_id, post_type=post_type,  # Pass post_type
+                meta_title=meta_title, meta_description=meta_description
             )
 
             if post_result:

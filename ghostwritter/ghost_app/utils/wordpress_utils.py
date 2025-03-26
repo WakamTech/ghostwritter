@@ -4,7 +4,7 @@ from wordpress_xmlrpc import Client, WordPressPost  # Keep this for potential ba
 from wordpress_xmlrpc.methods.posts import NewPost, GetPosts
 
 
-def create_wordpress_post(title, content, wordpress_url, username, password, post_status='draft', post_type='post'):
+def create_wordpress_post(title, content, wordpress_url, username, password, post_status='draft', post_type='post', meta_title=None, meta_description=None):
     """Creates a new WordPress post using the REST API."""
     # print(f"create_wordpress_post called with title: {title}, post_type: {post_type}, post_status: {post_status}")  # Debug print
     try:
@@ -18,6 +18,13 @@ def create_wordpress_post(title, content, wordpress_url, username, password, pos
             'content': content,
             'status': post_status,  # Use the provided post_status
         }
+
+        # Add Yoast SEO fields if provided
+        if meta_title:
+            data['_yoast_wpseo_title'] = meta_title
+        if meta_description:
+            data['_yoast_wpseo_metadesc'] = meta_description
+
         response = requests.post(api_url, auth=(username, password), json=data)
         response.raise_for_status()
         post_data = response.json()
@@ -33,7 +40,7 @@ def create_wordpress_post(title, content, wordpress_url, username, password, pos
 
 
 def get_post_by_url(post_url, wordpress_url, username, password):
-    """Récupère un article WordPress par son URL en utilisant l'API REST."""
+    """Retrieves a WordPress post by its URL using the REST API and checks Yoast SEO data."""
     print(f"get_post_by_url called with post_url: {post_url}")
     try:
         parsed_url = urlparse(post_url)
@@ -52,14 +59,28 @@ def get_post_by_url(post_url, wordpress_url, username, password):
         posts = response.json()
         print(f"get_post_by_url response: {posts}")
 
-
         if not posts:
             print(f"Aucun article trouvé avec le slug : {slug}")
             return None
         elif len(posts) > 1:
             print(f"Attention: Plusieurs articles trouvés avec le slug: {slug}. Le premier sera utilisé.")
-        print(f"Returning post ID: {posts[0]['id']}")
-        return posts[0]  # Return the entire post object
+        post = posts[0]  # Take the first post
+
+        # **Retrieve Yoast SEO data**
+        post_id = post['id']
+        api_url_single_post = f"{wordpress_url.rstrip('/')}/wp-json/wp/v2/posts/{post_id}"
+        response_single_post = requests.get(api_url_single_post, auth=(username, password))
+        response_single_post.raise_for_status()
+        post_data = response_single_post.json()
+
+        if 'yoast_head_json' in post_data:
+            yoast_data = post_data['yoast_head_json']
+            print("Yoast SEO Data:", json.dumps(yoast_data, indent=2)) # Log Yoast data
+        else:
+            print("Yoast SEO data not found for this post.")
+
+        print(f"Returning post ID: {post['id']}")
+        return post  # Return the entire post object
 
     except requests.exceptions.RequestException as e:
         print(f"HTTP Request Error: {e}")
@@ -68,7 +89,7 @@ def get_post_by_url(post_url, wordpress_url, username, password):
         print(f"Erreur lors de la récupération de l'article : {e}")
         return None
 
-def update_wordpress_post(post_id, title, content, wordpress_url, username, password, post_status='publish', post_type='post'):
+def update_wordpress_post(post_id, title, content, wordpress_url, username, password, post_status='publish', post_type='post', meta_title=None, meta_description=None):
     """Met à jour un article WordPress existant en utilisant l'API REST."""
     print(f"update_wordpress_post called with post_id: {post_id}, post_type: {post_type}")
     try:
@@ -81,6 +102,13 @@ def update_wordpress_post(post_id, title, content, wordpress_url, username, pass
             'content': content,
             'status': post_status
         }
+
+        # Add Yoast SEO fields if provided
+        if meta_title:
+            data['_yoast_wpseo_title'] = meta_title
+        if meta_description:
+            data['_yoast_wpseo_metadesc'] = meta_description
+
         response = requests.post(api_url, auth=(username, password), json=data)
         response.raise_for_status()
         # print(f"update_wordpress_post response: {response.json()}")
@@ -93,12 +121,12 @@ def update_wordpress_post(post_id, title, content, wordpress_url, username, pass
         print(f"Erreur lors de la mise à jour de l'article : {e}")
         return False
 
-def create_or_update_wordpress_post(title, content, wordpress_url, username, password, post_status='draft', post_id=None, post_type='post'):
+def create_or_update_wordpress_post(title, content, wordpress_url, username, password, post_status='draft', post_id=None, post_type='post', meta_title=None, meta_description=None):
     """Creates or updates a WordPress post/page (using REST API for updates)."""
     if post_id:
-        return update_wordpress_post(post_id, title, content, wordpress_url, username, password, post_status, post_type)
+        return update_wordpress_post(post_id, title, content, wordpress_url, username, password, post_status, post_type, meta_title, meta_description)
     else:
-        return create_wordpress_post(title, content, wordpress_url, username, password, post_status, post_type) # Use REST API create
+        return create_wordpress_post(title, content, wordpress_url, username, password, post_status, post_type, meta_title, meta_description) # Use REST API create
 
 def get_post_id_from_slug(wordpress_url, username, password, slug, post_type='page'):
     """get_post_id_from_slug (using REST API)"""

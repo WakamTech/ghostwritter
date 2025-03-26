@@ -83,3 +83,5 @@ class TimingConfigForm(forms.Form):
         label="Prompt Titre",
         widget=forms.Textarea(attrs={'rows': 4})
     )
+    prompt_meta_title_text = forms.CharField(label="Prompt Meta Title", widget=forms.Textarea(attrs={'rows': 4}), required=False)
+    prompt_meta_description_text = forms.CharField(label="Prompt Meta Description", widget=forms.Textarea(attrs={'rows': 4}), required=False)
