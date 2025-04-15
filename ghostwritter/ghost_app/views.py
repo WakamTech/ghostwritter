@@ -7,6 +7,14 @@ import time
 from .utils import google_search, content_extractor, openai_utils, wordpress_utils, markdown_to_html
 from urllib.parse import urljoin, urlparse
 
+POSSIBLE_ACF_MESSAGES_KEYS = [
+    'main_content', 'vision', 'faqs', 'meta_description', 'promotion',
+    'slots_description', 'short_description', 'page_title', 'introduction',
+    'playing_with_crypto', 'contact_details', 'faqs_1', 'faqs_2', 'faqs_3',
+    'faqs_4', 'faqs_5', 'faqs_6', 'glossary_1', 'glossary_2', 'glossary_3',
+    'glossary_test', 'news_1', 'news_2', 'news_3', 'terms', 'meta_title' # meta_title ajouté ici aussi
+]
+
 def dashboard_view(request):
     # Load initial configurations from JSON files
     initial_general_config = config_utils.load_general_config()
@@ -181,129 +189,304 @@ def run_operations():
     general_config = config_utils.load_general_config()
     openai_config = config_utils.load_openai_config()
     wordpress_config = config_utils.load_wordpress_config()
-    timing_config = config_utils.load_timing_config()
+    timing_config = config_utils.load_timing_config() # Contient tous les prompts
     sites_keywords_data = config_utils.load_sites_keywords()
 
     # --- Extract Configurations ---
     openai_api_key = openai_config.get('openai_api_key', '')
-    openai_model = openai_config.get('openai_model', 'gpt-3.5-turbo') # Default model
+    openai_model = openai_config.get('openai_model', 'gpt-3.5-turbo')
     wordpress_username = wordpress_config.get('wordpress_username', '')
     wordpress_password = wordpress_config.get('wordpress_password', '')
-    post_status = general_config.get('post_status', 'draft') # Default to draft
-    search_language = general_config.get('search_language', 'fr') # Default to French
-    search_domain = general_config.get('search_domain', 'com') # Default to .com
-    num_results = general_config.get('num_results', 3) # Default to 3
-    generation_mode = general_config.get('generation_mode', 'search') # Default to 'search'
-    sleep_time = timing_config.get('sleep_time', 3) # Default sleep time
-    prompt_article_v1 = timing_config.get('prompt_article_v1_text', '') # Get prompt texts
-    prompt_article_v2 = timing_config.get('prompt_article_v2_text', '')
-    prompt_resume = timing_config.get('prompt_resume_text', '')
-    prompt_titre_prompt = timing_config.get('prompt_titre_text', '') # Renamed variable
-    prompt_meta_title_prompt = timing_config.get('prompt_meta_title_text', '')  # New prompt for meta title
-    prompt_meta_description_prompt = timing_config.get('prompt_meta_description_text', '')  # New prompt for meta description
+    post_status = general_config.get('post_status', 'publish') # Publier par défaut peut-être?
+    search_language = general_config.get('search_language', 'fr')
+    search_domain = general_config.get('search_domain', 'com')
+    num_results = general_config.get('num_results', 3)
+    generation_mode = general_config.get('generation_mode', 'search')
+    sleep_time = timing_config.get('sleep_time', 3)
+
+    # --- Load ALL necessary prompts from timing_config ---
+    prompts = {}
+    # Charger les prompts spécifiques v1/v2
+    prompts['v1'] = timing_config.get('prompt_article_v1_text', '')
+    prompts['v2'] = timing_config.get('prompt_article_v2_text', '')
+    prompts['summary'] = timing_config.get('prompt_resume_text', '') # Pour le résumé/tableau
+    prompts['main_title'] = timing_config.get('prompt_titre_text', '') # Titre principal WP/Page
+
+    # Charger les prompts pour les clés ACF
+    for key in POSSIBLE_ACF_MESSAGES_KEYS:
+        prompt_config_key = f'prompt_{key}_text' # Ex: prompt_meta_title_text
+        prompts[key] = timing_config.get(prompt_config_key, '')
+        if not prompts[key]:
+            print(f"--- WARNING: Prompt for ACF key '{key}' (config key '{prompt_config_key}') is missing or empty! ---")
 
 
     # --- Process each site and keyword ---
     for site_keyword_item in sites_keywords_data:
         provided_url = site_keyword_item.get('url')
-        query = site_keyword_item.get('keyword')
+        query = site_keyword_item.get('keyword') # Le mot clé pour la génération
 
         if not provided_url or not query:
-            print(f"--- Skipping entry: Missing URL or keyword in sites_keywords data ---")
+            print(f"--- Skipping entry: Missing URL or keyword: {site_keyword_item} ---")
             continue
 
         print(f"\n--- Processing URL: {provided_url}, Keyword: {query} ---")
 
         try:
-            # --- 1. Determine WordPress URL and Post ID ---
+            # --- 1. Determine WordPress URL, ID, and Type ---
             parsed_url = urlparse(provided_url)
             base_wordpress_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-            full_wordpress_url = base_wordpress_url  # Use base URL for REST API
+            full_wordpress_url = base_wordpress_url # Utiliser la base pour l'API
             slug = parsed_url.path.strip('/') if parsed_url.path and parsed_url.path != '/' else None
 
             post_id = None
-            post_type = 'post'  # Default, will be overridden for home page
+            post_type = 'page' # Default to page
 
-
-            if not slug:  # It's likely the home page
-                print("--- Detecting Home Page URL ---")
+            if not slug: # Home page?
+                print("--- URL seems to be Home Page, checking settings... ---")
                 post_id = wordpress_utils.get_home_page_id(full_wordpress_url, wordpress_username, wordpress_password)
                 if post_id:
-                    post_type = 'page'  # Home page is *always* a page
-                    print(f"--- Home Page ID found: {post_id} ---")
+                    post_type = 'page' # Home page is always a page
+                    print(f"--- Home Page ID found: {post_id}, Type: {post_type} ---")
                 else:
-                    print("--- ERROR: Could not retrieve Home Page ID. Skipping this URL. ---")
-                    continue  # Skip if home page ID can't be found
-            elif slug: # If a slug is extracted from the URL, try to get existing post/page
-                post_id = wordpress_utils.get_post_id_from_slug(full_wordpress_url, wordpress_username, wordpress_password, slug, post_type='page')
+                    print("--- ERROR: Could not retrieve Home Page ID or it's not a static page. Skipping this URL. ---")
+                    continue
+            else: # Not home page, try to find by slug
+                print(f"--- Trying to find existing content by slug: '{slug}' ---")
+                post_id, found_type = wordpress_utils.get_post_id_from_slug(full_wordpress_url, wordpress_username, wordpress_password, slug, post_type='page') # Prioritize page
                 if post_id:
-                    post_type = 'page'
+                    post_type = found_type # Use the type it was found as ('page' or 'post')
+                    print(f"--- Existing content found. ID: {post_id}, Type: {post_type} ---")
                 else:
-                    post_id = wordpress_utils.get_post_id_from_slug(full_wordpress_url, wordpress_username, wordpress_password, slug, post_type='post')
-                    if not post_id:
-                        print(f"No existing post or page found for slug '{slug}'. Creating new post.")
+                    print(f"--- No existing content found for slug '{slug}'. Will create a new '{post_type}'. ---")
+                    post_id = None # Ensure post_id is None for creation path
 
-            # --- 2. Generate Article Content (Rest of the logic remains the same) ---
-            article_content = ""
+
+            # --- 2. Prepare Data Payload ---
+            wp_data_payload = {
+                'status': post_status,
+                # 'title': ?, # Sera défini ci-dessous
+                # 'content': ?, # Champ WP standard, optionnel si tout est dans ACF
+                # 'acf_messages': ? # Sera défini ci-dessous
+            }
+
+            # --- 3. Generate Base Content (Main Article) ---
+            # This content is used as context for generating all other fields
+            print(f"--- Generating base article content (Mode: {generation_mode}) ---")
+            base_article_content_md = "" # Markdown content
             if generation_mode == 'search':
+                prompt_to_use = prompts.get('v1')
+                if not prompt_to_use:
+                     print("--- ERROR: Prompt V1 is missing! Cannot generate content. Skipping. ---")
+                     continue
                 search_urls = google_search.get_organic_urls(query, num_results=int(num_results), lang=search_language, tld=search_domain)
                 if search_urls:
+                    print(f"--- Found {len(search_urls)} URLs from search. Extracting text... ---")
                     all_text_content = "".join([content_extractor.extract_text_from_url(url) or "" for url in search_urls])
-                    article_content = openai_utils.generate_article(prompt_article_v1, all_text_content, openai_api_key, query, openai_model)
+                    if not all_text_content.strip():
+                         print(f"--- WARNING: Extracted text from search results is empty for query '{query}'. Cannot generate reliable content. Skipping. ---")
+                         continue
+                    base_article_content_md = openai_utils.generate_article(prompt_to_use, all_text_content, openai_api_key, query, openai_model)
                 else:
-                    print(f"No search results found for query: {query}")
+                    print(f"--- No search results found for query: '{query}'. Cannot generate content in 'search' mode. Skipping. ---")
+                    continue # Skip this item if no search results in search mode
+            elif generation_mode == 'direct':
+                prompt_to_use = prompts.get('v2')
+                if not prompt_to_use:
+                     print("--- ERROR: Prompt V2 is missing! Cannot generate content. Skipping. ---")
+                     continue
+                base_article_content_md = openai_utils.generate_article(prompt_to_use, "", openai_api_key, query, openai_model)
+
+            if not base_article_content_md:
+                print(f"--- ERROR: Failed to generate base article content for query: '{query}'. Skipping. ---")
+                continue
+
+            print("--- Base article content generated (Markdown) ---")
+            # print(base_article_content_md[:200] + "...") # Print snippet
+
+            # --- 4. Generate WP Title ---
+            print("--- Generating WordPress Page Title ---")
+            wp_title_prompt = prompts.get('main_title')
+            if not wp_title_prompt:
+                 print("--- WARNING: Prompt for main title ('prompt_titre_text') is missing. Using keyword as title. ---")
+                 wp_data_payload['title'] = query.capitalize() # Fallback title
+            else:
+                 generated_title = openai_utils.generate_title(wp_title_prompt, base_article_content_md, openai_api_key, openai_model)
+                 wp_data_payload['title'] = generated_title.strip('"«»‘’“” ') # Clean up quotes/spaces
+
+            print(f"--- Generated WP Title: {wp_data_payload['title']} ---")
+
+
+            # --- 5. Handle ACF Messages (Create vs Update) ---
+            new_acf_messages = []
+
+            if post_id:
+                # --- UPDATE PATH ---
+                print(f"--- UPDATE PATH for Post ID: {post_id} ---")
+                print("--- Fetching existing page data... ---")
+                existing_data = wordpress_utils.get_post_data(post_id, full_wordpress_url, wordpress_username, wordpress_password, post_type)
+
+                if not existing_data:
+                    print(f"--- ERROR: Failed to fetch existing data for ID {post_id}. Cannot update. Skipping. ---")
                     continue
 
-            elif generation_mode == 'direct':
-                article_content = openai_utils.generate_article(prompt_article_v2, "", openai_api_key, query, openai_model)
+                existing_acf_messages = existing_data.get('acf_messages', [])
+                if not isinstance(existing_acf_messages, list): # Sanity check
+                     print(f"--- WARNING: Existing 'acf_messages' is not a list for ID {post_id}. Treating as empty. Data: {existing_acf_messages}")
+                     existing_acf_messages = []
 
-            if not article_content:
-                print(f"Failed to generate article content for: {query}")
-                continue
+                print(f"--- Found {len(existing_acf_messages)} existing ACF message rows. Processing relevant keys... ---")
 
-            # --- 3. Generate Title and Summary ---
-            article_title = openai_utils.generate_title(prompt_titre_prompt, article_content, openai_api_key, openai_model).strip('"').strip('«').strip('»')
-            article_summary = openai_utils.generate_summary_table(prompt_resume, article_content, openai_api_key, openai_model)
-
-            if not article_title or not article_summary:
-                print(f"Failed to generate title or summary for: {query}")
-                continue
+                # Get list of meta_keys present in the existing page's acf_messages
+                keys_to_regenerate = {msg.get('meta_key') for msg in existing_acf_messages if msg.get('meta_key') in POSSIBLE_ACF_MESSAGES_KEYS}
+                print(f"--- Meta keys found in existing ACF to regenerate: {keys_to_regenerate} ---")
 
 
-            # --- 3.5. Generate Meta Title and Meta Description ---
-            meta_title = openai_utils.generate_title(prompt_meta_title_prompt, article_content, openai_api_key, openai_model).strip('"').strip('«').strip('»')
-            meta_description = openai_utils.generate_title(prompt_meta_description_prompt, article_content, openai_api_key, openai_model)
-        
-            if not meta_title or not meta_description:
-                print(f"Failed to generate meta title or meta description for: {query}")
-                continue
+                # Regenerate content for each required key
+                for meta_key in keys_to_regenerate:
+                    prompt_text = prompts.get(meta_key)
+                    if not prompt_text:
+                        print(f"--- WARNING: No prompt found for meta_key '{meta_key}'. Cannot generate content for this field. Skipping ACF row. ---")
+                        continue
 
-            # --- 4. Convert Markdown to HTML and Combine Content ---
-            article_html_content = markdown_to_html.markdown_to_html(article_content)
-            full_post_content = f"<p>{article_summary}</p><p>{article_html_content}</p>"
+                    print(f"--- Generating content for ACF meta_key: '{meta_key}' ---")
+                    generated_content = ""
+                    try:
+                        if meta_key == 'main_content':
+                            # Special handling: combine summary and main article
+                            summary_prompt = prompts.get('summary')
+                            if summary_prompt:
+                                print("--- Generating summary for main_content ---")
+                                article_summary = openai_utils.generate_summary_table(summary_prompt, base_article_content_md, openai_api_key, openai_model)
+                            else:
+                                print("--- WARNING: Summary prompt missing. Skipping summary. ---")
+                                article_summary = ""
 
-            # --- 5. Create or Update WordPress Post/Page ---
-            # The key change is that if post_id exists (either from slug or home page), it *always* updates.
-            post_result = wordpress_utils.create_or_update_wordpress_post(
-                article_title, full_post_content, full_wordpress_url, wordpress_username, wordpress_password,
-                post_status=post_status, post_id=post_id, post_type=post_type,  # Pass post_type
-                meta_title=meta_title, meta_description=meta_description
+                            # Convert main markdown to HTML
+                            article_html_content = markdown_to_html.markdown_to_html(base_article_content_md)
+                            # Combine summary (if exists) and main content HTML
+                            generated_content = f"{article_summary}\n{article_html_content}".strip()
+                            # Optionally update the main WP content field as well?
+                            # wp_data_payload['content'] = generated_content
+
+                        elif meta_key == 'meta_title' or meta_key == 'page_title': # Use generate_title for titles
+                             generated_content = openai_utils.generate_title(prompt_text, base_article_content_md, openai_api_key, openai_model).strip('"«»‘’“” ')
+                        elif meta_key == 'meta_description' or meta_key == 'short_description' or meta_key == 'introduction': # Use generate_summary for descriptions/intros
+                             generated_content = openai_utils.generate_summary(prompt_text, base_article_content_md, openai_api_key, openai_model) # Need generate_summary
+                        else: # Use a generic generation for other fields (like vision, faqs, etc.)
+                            # Assuming generate_article can work as a generic generator here
+                            # Or create openai_utils.generate_generic(prompt, context, ...)
+                             generated_content = openai_utils.generate_article(prompt_text, base_article_content_md, openai_api_key, query, openai_model) # Pass query for context too?
+
+                        if generated_content:
+                            print(f"--- Generated content for '{meta_key}' (snippet): {generated_content[:100]}... ---")
+                            # Add to the new acf_messages list
+                            new_acf_messages.append({
+                                "role": "user", # Keep structure similar to example
+                                "gpt": True,
+                                "content": prompt_text, # Store the *prompt* used in 'content'? Or the generated result? Your example has prompt here. Let's keep prompt.
+                                "result": generated_content, # Store the *result* here
+                                "meta_key": meta_key,
+                                "status": "completed", # Mark as completed
+                                "completed_date": time.strftime("%Y-%m-%d %H:%M:%S")
+                            })
+                        else:
+                            print(f"--- WARNING: Failed to generate content for meta_key '{meta_key}'. Skipping ACF row. ---")
+
+                    except Exception as gen_e:
+                        print(f"--- ERROR during OpenAI generation for meta_key '{meta_key}': {gen_e}. Skipping ACF row. ---")
+
+
+            else:
+                # --- CREATE PATH ---
+                print(f"--- CREATE PATH for new page ---")
+                # Define the default ACF messages to create
+                default_keys_to_create = ['main_content', 'meta_title', 'meta_description']
+                print(f"--- Will create default ACF message rows for: {default_keys_to_create} ---")
+
+                for meta_key in default_keys_to_create:
+                    prompt_text = prompts.get(meta_key)
+                    if not prompt_text:
+                        if meta_key != 'main_content' :
+                            print(f"--- WARNING: No prompt found for default meta_key '{meta_key}'. Cannot generate content. Skipping ACF row. ---")
+                            continue
+
+                    print(f"--- Generating content for default ACF meta_key: '{meta_key}' ---")
+                    generated_content = ""
+                    try:
+                        if meta_key == 'main_content':
+                            summary_prompt = prompts.get('summary')
+                            if summary_prompt:
+                                print("--- Generating summary for main_content ---")
+                                article_summary = openai_utils.generate_summary_table(summary_prompt, base_article_content_md, openai_api_key, openai_model)
+                            else:
+                                article_summary = ""
+                            article_html_content = markdown_to_html.markdown_to_html(base_article_content_md)
+                            generated_content = f"{article_summary}\n{article_html_content}".strip()
+                            # Optionally set the main WP content field on creation?
+                            # wp_data_payload['content'] = generated_content
+                        elif meta_key == 'meta_title':
+                            generated_content = openai_utils.generate_title(prompt_text, base_article_content_md, openai_api_key, openai_model).strip('"«»‘’“” ')
+                        elif meta_key == 'meta_description':
+                            generated_content = openai_utils.generate_title(prompt_text, base_article_content_md, openai_api_key, openai_model) # Need generate_summary
+
+                        if generated_content:
+                            print(f"--- Generated content for '{meta_key}' (snippet): {generated_content[:100]}... ---")
+                            new_acf_messages.append({
+                                "role": "user",
+                                "gpt": True,
+                                "content": prompt_text, # Store prompt
+                                "result": generated_content, # Store result
+                                "meta_key": meta_key,
+                                "status": "completed", # Mark as completed
+                                "completed_date": time.strftime("%Y-%m-%d %H:%M:%S")
+                            })
+                        else:
+                             print(f"--- WARNING: Failed to generate content for default meta_key '{meta_key}'. Skipping ACF row. ---")
+                    except Exception as gen_e:
+                        print(f"--- ERROR during OpenAI generation for default meta_key '{meta_key}': {gen_e}. Skipping ACF row. ---")
+
+            # --- Add the generated ACF messages to the payload ---
+            if new_acf_messages:
+                 wp_data_payload['acf_messages'] = new_acf_messages
+            else:
+                 print("--- WARNING: No ACF messages were generated or added to the payload. ---")
+                 # Decide if you want to send an empty list or omit the key
+                 # wp_data_payload['acf_messages'] = []
+
+
+            # --- 6. Execute Create or Update ---
+            print(f"--- Preparing to {'UPDATE' if post_id else 'CREATE'} resource ---")
+            # Note: Pass post_type determined earlier (page or post)
+            result = wordpress_utils.create_or_update_wordpress_resource(
+                wp_data_payload,
+                full_wordpress_url,
+                wordpress_username,
+                wordpress_password,
+                post_id=post_id,
+                post_type=post_type
             )
 
-            if post_result:
-                if post_id: # Always an update if post_id is not None
-                    print(f"Article/Page updated successfully on {full_wordpress_url} with Post ID: {post_id}")
+            if post_id: # Update
+                if result: # result is True on successful update
+                    print(f"--- SUCCESS: Page/Post updated successfully on {full_wordpress_url} (ID: {post_id}) ---")
                 else:
-                    print(f"Article created with ID: {post_result} on {full_wordpress_url}") #This case will be use for the creation of post.
-            else:
-                print(f"Failed to create or update article on {full_wordpress_url}")
+                    print(f"--- FAILURE: Failed to update Page/Post on {full_wordpress_url} (ID: {post_id}) ---")
+            else: # Create
+                if result: # result is the new ID on successful creation
+                    print(f"--- SUCCESS: Page/Post created successfully with ID: {result} on {full_wordpress_url} ---")
+                else:
+                    print(f"--- FAILURE: Failed to create Page/Post on {full_wordpress_url} ---")
 
 
+            # --- 7. Sleep ---
+            print(f"--- Sleeping for {sleep_time} seconds ---")
             time.sleep(int(sleep_time))
 
         except Exception as e:
-            print(f"--- 💥 Error processing URL: {provided_url}, Keyword: {query} ---")
-            print(f"Error details: {e}")
-            print("Moving to the next entry...")
+            print(f"--- 💥 UNHANDLED ERROR processing URL: {provided_url}, Keyword: {query} ---")
+            import traceback
+            traceback.print_exc() # Print full traceback for debugging
+            print("--- Moving to the next entry... ---")
+            continue # Move to the next item in the loop
 
-    print("--- End of Operations ---")
+    print("--- End of All Operations ---")
